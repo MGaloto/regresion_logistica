@@ -1,0 +1,443 @@
+---
+title: "Modelo Data Set Telephonica"
+author: "Elizabeth Salaz, Maximiliano Galoto, Emmanuel Beilmann"
+date: "28/09/2021"
+output:
+  html_notebook:
+    theme: cerulean
+    toc: yes
+    toc_float: yes
+
+---
+
+
+
+_Este trabajo consiste en hacer un análisis estadístico **descriptivo**, **visual**, y un **modelo** que nos ayude
+a predecir si un empleado dejara o no su compañía telefónica dadas ciertas características._
+  
+# Objetivos especificos
+
+  + **Objetivo 1:**
+  
+  
+     * Explorar el Data Set y eliminamos variables que no nos sirvan para el analisis.
+     
+     
+  + **Objetivo 2:**
+  
+  
+     * Hacer un modelo de regresion logistica.
+     
+     
+  + **Objetivo 3:**
+  
+  
+     * Identificar los coeficientes de regresion y hacer algunos graficos para explicar visual y cuantitativamente los resultados.
+     
+
+
+
+
+```{r, include=FALSE}
+
+
+library(tidyverse)
+library(ggplot2)
+library(dplyr)  
+library(readxl)
+library(readr)
+library(crayon)
+library(gridExtra)
+library(prettydoc)
+
+```
+
+
+
+```{r, include=FALSE}
+#dir()
+
+df = read_excel('telephonica.xlsx')
+
+
+
+
+colnames(df) =  gsub(" ", "_", colnames(df))
+
+colnames(df) = gsub('á', 'a', colnames(df))
+colnames(df) = gsub('é', 'e', colnames(df))
+colnames(df) = gsub('ú', 'u', colnames(df))
+colnames(df) = gsub('ó', 'o', colnames(df))
+colnames(df) = gsub('í', 'i', colnames(df))
+colnames(df) = gsub(',', '', colnames(df))
+
+
+
+names(df)
+
+df$Larga_distancia_en_el_ultimo_mes = as.numeric(df$Larga_distancia_en_el_ultimo_mes)
+df$Larga_distancia_durante_la_permanencia = as.numeric(df$Larga_distancia_durante_la_permanencia)
+df$Llamadas_gratuitas_en_el_ultimo_mes = as.numeric(df$Llamadas_gratuitas_en_el_ultimo_mes)
+df$Llamadas_gratuitas_durante_la_permanencia = as.numeric(df$Llamadas_gratuitas_durante_la_permanencia)
+df$Equipos_en_el_ultimo_mes = as.numeric(df$Equipos_en_el_ultimo_mes)
+df$Equipos_durante_la_permanencia = as.numeric(df$Equipos_durante_la_permanencia)
+df$Tarjeta_de_llamada_en_el_ultimo_mes = as.numeric(df$Tarjeta_de_llamada_en_el_ultimo_mes)
+df$Tarjeta_de_llamada_durante_la_permanencia = as.numeric(df$Tarjeta_de_llamada_durante_la_permanencia)
+df$Inalambrico_en_el_ultimo_mes = as.numeric(df$Inalambrico_en_el_ultimo_mes)
+df$Inalambrico_durante_la_permanencia = as.numeric(df$Inalambrico_durante_la_permanencia)
+
+
+
+
+```
+
+
+
+
+# Primeras observaciones del data set:
+
+**_Dimension del data set:_**
+
+```{r, echo=F}
+
+
+dim_data <- dim(df)
+cat("El dataset tiene una dimension de", bold(dim_data[1]),"filas y",bold(dim_data[2]),"columnas.\n")
+
+
+```
+**_Chequeo de los valores unicos del ID:_**
+
+```{r, echo=F}
+
+
+
+dim_data <- dim(df)
+cat("El dataset tiene", bold(dim_data[1]),"filas y",bold(length(df$ID_cliente)),"IDs diferentes\n")
+
+
+```
+
+
+**_Chequeo de la estructura del archivo importado:_**
+
+```{r, echo=F}
+
+str(df[,-1])
+
+```
+
+# Analisis estadistico descriptivo de todo el dataset
+
+```{r, echo=F}
+
+summary(df)
+
+```
+
+**_Explorando el tipo de variables:_**
+
+
+
+
+```{r, echo=F}
+count_cuantitativas  <- 0   # Contador de variables cuantitativas para el dataset 
+count_cualitativas  <- 0    # Contador de variables cualitativas para el dataset 
+list_cuantitativas <- c()   # Lista que almacena las variables categoricas para el dataset 
+list_cualitativas <- c()    # Lista que almacena las variables cuantitativas para el dataset 
+
+for (i in colnames(df))
+{
+  cat("la columna",bold(i),"es del tipo",bold(typeof(df[[i]])), "\n")
+  if (is.character(df[[i]])){
+    count_cualitativas = count_cualitativas + 1
+    list_cualitativas <- c(list_cualitativas, i)
+    
+  } else {
+    count_cuantitativas = count_cuantitativas + 1
+    list_cuantitativas <- c(list_cuantitativas, i)
+  }
+}
+
+cat("\nHay", bold(count_cuantitativas), "variables cuantitativas y", bold(count_cualitativas), "variables cualitativas en el set de datos.\n")
+cat("\nLas variables cuantitativas son las siguientes:\n", paste0(list_cuantitativas, ","), ".\n")
+cat("\nLas variables cualitativas son las siguientes:\n", paste0(list_cualitativas, ","), ".\n")
+
+
+
+
+```
+
+
+
+
+**_Análisis de datos nulos:_**
+
+
+
+```{r, echo=F}
+
+col_names<-names(df)
+for (i in col_names)
+{
+  na_sum = sum(is.na(df[i]))
+  na = na_sum
+  na_percent = na_sum
+  if (na_sum > 0) {
+    na = red(na_sum)
+    na_percent = red(100 * na_sum / length(df[[i]]) )
+  }
+  cat("La variable",bold(i), "tiene", bold(na), "registros nulos, el", bold(na_percent), "% del total de sus registros.\n")
+}
+
+```
+
+
+
+**_Al ser solo 2 observaciones nulas se eliminan del data set_**
+
+```{r, include=FALSE}
+
+
+df = na.omit(df)
+
+
+```
+
+
+
+# Modelo
+
+
+**_Ejecutamos el modelo de regresión logística con todas las variables del data set para estimar los parámetros que nos ayudaran a predecir los valores de la variable dependiente:_**
+
+
+
+```{r, echo=F}
+
+
+
+modelo <- glm(formula = Cambio_de_proveedor_en_el_ultimo_mes ~ ., data = df[,-c(1)],
+                  family = "binomial")
+
+
+
+summary(modelo)
+
+```
+
+**_Las variables estadisticamente significativas al 0.05 o menos son las siguientes:_**
+
+
+```{r, echo=F}
+
+
+variables_significativas = summary(modelo)$coef[summary(modelo)$coef[,4] <= .05, 4]
+variables_significativas
+
+
+```
+
+
+**_Se estimara el siguiente modelo con las siguientes variables:_**
+
+
+$$Y = β_0 + X_1β_1 + X_2β_2 + X_3β_3 + X_4β_4 + X_5β_5 $$
+$$    Donde:       $$
+
+
+|$$ \textbf{X_i}$$ | $$ \textbf{Variable}$$ | $$ \textbf{Descripcion}$$ |
+|-------|------------|------------|
+| $$ X_1$$     |   $$Larga \: distancia\: en \:el \:ultimo \:mes$$         | $$ De \: 0.9\: a \:179.85$$         |
+| $$ X_2$$     | $$Años \: de\: educacion $$         |$$ De \: 6\: a \:23$$         |
+| $$ X_3$$     | $$Factura \: Electronica$$         | $$ Si = 1 \: No = 0:$$          |
+| $$ X_4$$     | $$Numero \: de\: meses \: con \: servicio$$        | $$ De \: 0\: a \:72$$          |
+| $$ X_5$$     | $$Lineas \: Multiples$$            | $$ Si = 1 \: No = 0:$$       |
+
+
+
+**_Para eso volvemos a ejecutar el modelo con solo las variables significativas:_**
+
+
+
+
+```{r, echo=F}
+
+
+
+
+
+modelo_2 <- glm(formula = Cambio_de_proveedor_en_el_ultimo_mes ~   Larga_distancia_en_el_ultimo_mes + 
+                   + Años_de_educacion + 
+                 Facturacion_electronica + Numero_de_meses_con_servicio + Lineas_multiples  , data = df,
+                  family = "binomial")
+
+df_modelo_2 = df %>% select(ID_cliente   ,Larga_distancia_en_el_ultimo_mes ,
+                    Años_de_educacion ,
+                 Facturacion_electronica ,Numero_de_meses_con_servicio , Lineas_multiples ,
+                Cambio_de_proveedor_en_el_ultimo_mes)
+
+summary(modelo_2)
+
+
+
+
+```
+
+
+
+**_Los coeficientes del modelo quedarían:_**
+
+
+$$Y = -1.619879 + -0.016838X_1 + 0.109619X_2 + 0.866248X_3 + -0.047436X_4 + 0.532589X_5  $$
+
+**_Si se incrementa en una unidad los números de meses con servicios y todas las demás variables permanecen constantes, la probabilidad de cambiar de compañía disminuye en promedio 0.04 aproximadamente._**
+
+**_En cambio, por cada año que se incrementa la variable años de educación, la probabilidad de cambiar de compañía aumenta en promedio un 0.10._**
+
+**_Para calcular las probabilidades:_**
+
+$$ P_i = \frac{1}{1 + exp^Y} $$
+
+
+
+### Predicciones
+
+```{r, echo=F}
+
+prediccion_y = predict(object = modelo_2, newdata = df_modelo_2, type = 'response')
+
+df_modelo_2$predict = round(prediccion_y,2)
+
+prediccion_y = ifelse(test = prediccion_y > 0.5, yes = 1, no = 0)
+
+df_modelo_2$prediccion = prediccion_y
+
+
+
+```
+
+
+**_Le agregamos al Data Frame del modelo los resultados de la prediccion como columna:_**
+
+
+```{r, echo=F}
+
+df_modelo_2$prediccion = prediccion_y
+
+df_modelo_2  %>% select(Cambio_de_proveedor_en_el_ultimo_mes, prediccion)
+
+```
+
+
+**_Comparamos la realidad con nuestro modelo:_**
+
+
+```{r, echo=F}
+
+
+df_modelo_2$validacion = df_modelo_2$Cambio_de_proveedor_en_el_ultimo_mes == df_modelo_2$prediccion
+
+df_modelo_2  %>% select(Cambio_de_proveedor_en_el_ultimo_mes, prediccion, validacion)
+
+
+```
+
+**_Verificamos la precision del modelo:_**
+
+
+```{r, echo=F}
+
+
+
+porcentaje = round(sum(df_modelo_2$validacion) / length(df_modelo_2$validacion),4)*100
+
+
+
+cat("El modelo estimado tiene una precision de ",bold(porcentaje),"%\n")
+
+
+
+
+```
+
+
+
+**_Luego de ejecutar el modelo y predecir la variable dependiente, a los valores mayores de 0.5 se les asigno el numero 1, es decir, dejo el servicio, y a los valores menores de 0.5 se les asigno el numero 0_**
+
+**_La precision del modelo se calculo en base a la comparación entre los valores reales y estimados_**
+
+
+
+```{r, include=FALSE}
+
+
+write.csv(df_modelo_2,"dfmodel_telec_2.csv", row.names = F)
+
+
+
+```
+
+
+
+# Graficos
+
+
+
+```{r, echo=FALSE, message=FALSE, results='hide'}
+
+grafico_años_edad =   ggplot(df_modelo_2, aes(Años_de_educacion, prediccion)) +
+                        geom_point(alpha = 0.1, color = '#41989c') +
+                        geom_smooth(method = "glm", method.args = list(family = "binomial"), lwd = 1.5) +
+                        labs(
+                          title = "Regresion Logistica años de educacion", 
+                          x = "Años de Educacion",
+                          y = "Probabilidad de cambiar de empresa") +
+                          theme(plot.title = element_text(hjust=0.5),
+                            plot.background = element_rect(fill = "#e6e6e8"),
+                            panel.background = element_rect(fill = "#e6e6e8"))
+
+grafico_años_edad
+
+```
+
+
+```{r, echo=FALSE, message=FALSE, results='hide'}
+grafico_larga_dist =   ggplot(df_modelo_2, aes(Larga_distancia_en_el_ultimo_mes,prediccion)) +
+                          geom_point(alpha = 0.1, color = '#41989c') +
+                          geom_smooth(method = "glm", method.args = list(family = "binomial"), lwd = 1.5) +
+                          labs(
+                            title = "Regresion Logistica larga distancia", 
+                            x = "Larga distancia ultimo mes",
+                            y = "Probabilidad de cambiar de empresa") +
+                          theme(plot.title = element_text(hjust=0.5),
+                            plot.background = element_rect(fill = "#e6e6e8"),
+                            panel.background = element_rect(fill = "#e6e6e8"))
+
+grafico_larga_dist
+
+```
+
+**_Podemos visualizar, que la probabilidad de cambiar de compañía se hace casi cero cuando la cantidad de llamadas a larga distancia superan las 20 en el ultimo mes_**
+
+
+```{r, echo=FALSE, message=FALSE, results='hide'}
+
+grafico_num_mes =   ggplot(df_modelo_2, aes(Numero_de_meses_con_servicio , prediccion)) +
+                          geom_point(alpha = 0.1, color = '#41989c') +
+                          geom_smooth( method = "glm", method.args = list(family = "binomial"), lwd = 1.5) +
+                          labs(
+                            title = "Regresion Logistica meses con el servicio", 
+                            x = "Numero de meses con el servicio",
+                            y = "Probabilidad de cambiar de empresa") +
+                          theme(plot.title = element_text(hjust=0.5),
+                            plot.background = element_rect(fill = "#e6e6e8"),
+                            panel.background = element_rect(fill = "#e6e6e8"))
+
+grafico_num_mes
+
+
+
+
+```
+
