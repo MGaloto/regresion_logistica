@@ -1,6 +1,6 @@
 ---
 title: "Modelo Data Set Telephonica"
-author: "Elizabeth Salaz, Maximiliano Galoto, Emmanuel Beilmann"
+author: "Maximiliano Galoto"
 date: "28/09/2021"
 output:
   html_notebook:
